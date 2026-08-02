@@ -1,0 +1,17 @@
+# Build results
+bin/
+obj/
+
+# NuGet packages
+packages/
+
+# VS user files
+.vs/
+*.user
+*.suo
+
+# User settings (do NOT commit local WinLaunch data)
+*.config.user
+
+# Output / logs
+*.log

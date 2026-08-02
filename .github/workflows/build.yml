@@ -1,0 +1,78 @@
+name: Build WinLaunch
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:      # 允许在 GitHub 网页上手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # windows-latest 已预装 .NET Framework MSBuild、NuGet 和
+      # .NET Framework 4.8 Developer Pack,无需额外 setup。
+      # 这里显式定位 .NET Framework 版 MSBuild.exe(避开 dotnet-msbuild
+      # 不支持 COM 引用 ResolveComReference 的问题)。
+      - name: Locate .NET Framework MSBuild
+        id: find-msbuild
+        shell: pwsh
+        run: |
+          $msbuild = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\*\*\MSBuild\Current\Bin\MSBuild.exe" -ErrorAction SilentlyContinue |
+                    Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $msbuild) {
+            $msbuild = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\*\*\MSBuild\*\Bin\MSBuild.exe" -ErrorAction SilentlyContinue |
+                       Sort-Object FullName -Descending | Select-Object -First 1
+          }
+          if (-not $msbuild) {
+            Write-Error "MSBuild.exe not found. windows-latest should include Build Tools."
+            exit 1
+          }
+          Write-Output "msbuild_path=$($msbuild.FullName)"
+          echo "msbuild_path=$($msbuild.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          nuget restore WinLaunch.csproj -PackagesDirectory packages
+        env:
+          NUGET_PACKAGES: ${{ runner.workspace }}/packages
+
+      - name: Build (Release x64)
+        shell: pwsh
+        run: |
+          & "${{ steps.find-msbuild.outputs.msbuild_path }}" `
+            WinLaunch.csproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /v:minimal
+
+      # csproj 里没有为 HookWindowsKey.dll / XInputDotNetPure.dll /
+      # XInputInterface.dll 声明复制规则,这里手动把它们放进输出目录,
+      # 否则 exe 启动时会找不到这些依赖。
+      - name: Copy native dependencies into output
+        shell: pwsh
+        run: |
+          $out = "bin\x64\Release"
+          if (-not (Test-Path $out)) { Write-Error "Output dir missing: $out"; exit 1 }
+          foreach ($dll in @("HookWindowsKey.dll","XInputDotNetPure.dll","XInputInterface.dll")) {
+            if (Test-Path $dll) {
+              Copy-Item $dll $out -Force
+              Write-Output "copied $dll -> $out"
+            } else {
+              Write-Warning "missing: $dll"
+            }
+          }
+          Get-ChildItem $out | Select-Object Name, Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinLaunch-x64
+          path: bin/x64/Release
+          if-no-files-found: error
