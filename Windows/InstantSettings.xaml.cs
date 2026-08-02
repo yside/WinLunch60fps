@@ -79,6 +79,11 @@ namespace WinLaunch
             cbEnableCustomBackground.Checked += UpdateCustomBackground;
             cbEnableCustomBackground.Unchecked += UpdateBackground;
 
+            //Solid background
+            cbEnableSolidBackground.Checked += UpdateSolidBackground;
+            cbEnableSolidBackground.Unchecked += UpdateSolidBackground;
+            cpSolidBackgroundColor.SelectedColorChanged += UpdateSolidBackgroundColor;
+
             cbCheckForUpdatesFrequently.Unchecked += CbCheckForUpdatesFrequently_Unchecked;
             cbCheckForUpdatesFrequently.Checked += CbCheckForUpdatesFrequently_Checked;
 
@@ -439,6 +444,64 @@ namespace WinLaunch
             }
 
             spBackgroundImageOptions.IsEnabled = !theme.UseAeroBlur;
+
+            InitSolidBackground();
+        }
+
+        void InitSolidBackground()
+        {
+            //solid background and the aero/image options are mutually exclusive
+            spBackgroundImageOptions.IsEnabled = !theme.UseAeroBlur && !theme.UseSolidBackground;
+
+            //when solid background is active, the other options are hidden behind it anyway
+            spAero.IsEnabled = GlassUtils.IsBlurBehindAvailable() && !theme.UseSolidBackground;
+        }
+
+        void UpdateSolidBackground(object sender, RoutedEventArgs e)
+        {
+            bool wasSolid = theme.UseSolidBackground;
+
+            //setting both aero and solid simultaneously makes no sense:
+            //turning one on switches the other off
+            if ((bool)cbEnableSolidBackground.IsChecked)
+            {
+                theme.UseAeroBlur = false;
+                theme.UseCustomBackground = false;
+                BindingOperations.GetBindingExpression(cbEnableAero, CheckBox.IsCheckedProperty).UpdateTarget();
+                BindingOperations.GetBindingExpression(cbEnableCustomBackground, CheckBox.IsCheckedProperty).UpdateTarget();
+            }
+
+            //the switch between transparent / opaque window can't be done at runtime
+            if (wasSolid != (bool)cbEnableSolidBackground.IsChecked)
+            {
+                if (MessageBox.Show(TranslationSource.Instance["AeroSwitch"], TranslationSource.Instance["UseSolidBackground"], MessageBoxButton.OKCancel, MessageBoxImage.Exclamation) == MessageBoxResult.OK)
+                {
+                    //save theme and restart
+                    Theme.SaveTheme(Theme.CurrentTheme);
+
+                    MiscUtils.RestartApplication();
+                    return;
+                }
+                else
+                {
+                    //user cancelled -> revert checkbox
+                    theme.UseSolidBackground = wasSolid;
+                    BindingOperations.GetBindingExpression(cbEnableSolidBackground, CheckBox.IsCheckedProperty).UpdateTarget();
+                    return;
+                }
+            }
+
+            //no restart needed (color change etc.)
+            mainWindow.SetupThemes();
+            InitSolidBackground();
+        }
+
+        void UpdateSolidBackgroundColor(object sender, RoutedPropertyChangedEventArgs<Color> e)
+        {
+            if (theme.UseSolidBackground)
+            {
+                mainWindow.SetupThemes();
+            }
         }
 
         void UpdateBackground(object sender, RoutedEventArgs e)
@@ -448,7 +511,7 @@ namespace WinLaunch
                 //we need to restart to switch
                 if (MessageBox.Show(TranslationSource.Instance["AeroSwitch"], TranslationSource.Instance["EnableAero"], MessageBoxButton.OKCancel, MessageBoxImage.Exclamation) == MessageBoxResult.OK)
                 {
-                    //save theme and restart 
+                    //save theme and restart
                     Theme.SaveTheme(Theme.CurrentTheme);
 
                     //restart
@@ -469,6 +532,8 @@ namespace WinLaunch
 
                 mainWindow.SetupThemes();
             }
+
+            InitSolidBackground();
         }
 
         void UpdateBackgroundTint(object sender, RoutedPropertyChangedEventArgs<double> e)

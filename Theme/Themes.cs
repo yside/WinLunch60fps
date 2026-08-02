@@ -76,11 +76,17 @@ namespace WinLaunch
         public void SetupThemes()
         {
             //possible background settings
+            //- solid background (no transparency -> hardware accelerated)
             //- aero (with or without accent colors)
             //- sync wallpaper
             //- custom wallpaper
 
-            if (Theme.CurrentTheme.UseAeroBlur && GlassUtils.IsBlurBehindAvailable() && AllowsTransparency)
+            if (Theme.CurrentTheme.UseSolidBackground)
+            {
+                //solid opaque background - fastest path
+                SetSolidBackgroundTheme();
+            }
+            else if (Theme.CurrentTheme.UseAeroBlur && GlassUtils.IsBlurBehindAvailable() && AllowsTransparency)
             {
                 //setup aero theme
                 SetAeroBlurTheme();
@@ -95,6 +101,25 @@ namespace WinLaunch
                 //fallback to synced
                 SetSyncedTheme();
             }
+        }
+
+        /// <summary>
+        /// Sets an opaque solid color background. Because the window no longer
+        /// needs transparency it can run with AllowsTransparency = false, which
+        /// lets WPF use the GPU (hardware) rendering path instead of the slow
+        /// software-rendered layered-window path.
+        /// </summary>
+        public void SetSolidBackgroundTheme()
+        {
+            //disable any DWM blur / acrylic (not needed with an opaque bg)
+            GlassUtils.DisableBlurBehind(this);
+
+            //hide wallpaper layers
+            Wallpaperbottom.Visibility = System.Windows.Visibility.Collapsed;
+            Wallpapernoblur.Visibility = System.Windows.Visibility.Collapsed;
+
+            //set the solid opaque background
+            Background = new SolidColorBrush(Theme.CurrentTheme.SolidBackgroundColor);
         }
 
         public void SetAeroBlurTheme()

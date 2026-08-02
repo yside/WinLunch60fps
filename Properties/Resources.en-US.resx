@@ -97,6 +97,15 @@
 	<data name="BackgroundTint" xml:space="preserve">
 		<value>Background tint</value>
 	</data>
+	<data name="SolidBackgroundColor" xml:space="preserve">
+		<value>Background color</value>
+	</data>
+	<data name="UseSolidBackground" xml:space="preserve">
+		<value>Use solid color background</value>
+	</data>
+	<data name="UseSolidBackgroundInfo" xml:space="preserve">
+		<value>Uses an opaque color as the background. This allows WinLaunch to run without window transparency, which uses hardware acceleration and greatly improves animation smoothness.</value>
+	</data>
 	<data name="BackupAndRestore" xml:space="preserve">
 		<value>Backup and Restore</value>
 	</data>

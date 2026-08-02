@@ -92,6 +92,19 @@ namespace WinLaunch
         public double BackgroundBlurRadius { get; set; }
         public double BackgroundTransparency { get; set; }
         public bool UseCustomBackground { get; set; }
+
+        /// <summary>
+        /// When enabled WinLaunch uses a solid (opaque) color as background.
+        /// The window can then disable AllowsTransparency, which restores
+        /// hardware accelerated rendering (and fixes the ~30 fps cap that the
+        /// layered/software rendering path imposes on a fullscreen window).
+        /// </summary>
+        public bool UseSolidBackground { get; set; }
+
+        /// <summary>
+        /// The solid background color used when UseSolidBackground is enabled.
+        /// </summary>
+        public Color SolidBackgroundColor { get; set; }
         #endregion BackgroundEffects
 
         #region Icons
@@ -392,6 +405,11 @@ namespace WinLaunch
             BackgroundBlurRadius = 0.5;
             BackgroundTransparency = 0.8;
             UseCustomBackground = false;
+
+            // default to a solid dark background: this keeps the old look while
+            // letting the window run without transparency (hardware accelerated)
+            UseSolidBackground = true;
+            SolidBackgroundColor = Color.FromArgb(255, 0, 0, 0);
 
             IconTextColor = Colors.White;
             IconTextShadowColor = Colors.Black;

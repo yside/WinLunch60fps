@@ -195,7 +195,15 @@ namespace WinLaunch
 
             //enable if aero is in use and available
             //if (Theme.CurrentTheme.UseAeroBlur && GlassUtils.IsBlurBehindAvailable())
-            if(Settings.CurrentSettings.DeskMode && Settings.CurrentSettings.LegacyDeskMode)
+            if (Theme.CurrentTheme.UseSolidBackground)
+            {
+                //solid background: no transparency needed -> hardware rendering.
+                //This is the key to fixing the ~30 fps cap: a transparent window
+                //(AllowsTransparency) forces WPF into the software-rendered
+                //layered-window path, which is very slow on a fullscreen surface.
+                this.AllowsTransparency = false;
+            }
+            else if (Settings.CurrentSettings.DeskMode && Settings.CurrentSettings.LegacyDeskMode)
             {
                 //disable on legacy desk mode
                 this.AllowsTransparency = false;
