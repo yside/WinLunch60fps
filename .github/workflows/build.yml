@@ -39,9 +39,32 @@ jobs:
       - name: Restore NuGet packages
         shell: pwsh
         run: |
-          nuget restore WinLaunch.csproj -PackagesDirectory packages
-        env:
-          NUGET_PACKAGES: ${{ runner.workspace }}/packages
+          # The csproj resolves the toolkit via HintPath
+          # "..\packages\Extended.Wpf.Toolkit.2.2.1\lib\net40\Xceed.Wpf.Toolkit.dll",
+          # which is RELATIVE TO THE PROJECT DIR (the repo root). So the packages
+          # folder must be the PARENT of the workspace, i.e. .../packages, not
+          # repo/packages. Restoring to the wrong folder is what caused MC3074.
+          $workspace = $env:GITHUB_WORKSPACE
+          $packagesDir = Join-Path (Split-Path $workspace -Parent) 'packages'
+          Write-Output "Restoring NuGet packages to: $packagesDir"
+          nuget restore WinLaunch.csproj -PackagesDirectory $packagesDir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem $packagesDir -Recurse -Filter 'Xceed.Wpf.Toolkit.dll' -ErrorAction SilentlyContinue | Select-Object FullName
+
+      # Safety net: fail with a clear message (plus a directory listing) if the
+      # toolkit still isn't at the exact HintPath MSBuild expects.
+      - name: Verify Xceed.Wpf.Toolkit.dll at HintPath
+        shell: pwsh
+        run: |
+          $packagesDir = Join-Path (Split-Path $env:GITHUB_WORKSPACE -Parent) 'packages'
+          $expected = Join-Path $packagesDir 'Extended.Wpf.Toolkit.2.2.1\lib\net40\Xceed.Wpf.Toolkit.dll'
+          if (Test-Path $expected) {
+            Write-Output "Toolkit present at HintPath: $expected"
+          } else {
+            Write-Error "Xceed.Wpf.Toolkit.dll not found at expected HintPath: $expected"
+            Get-ChildItem $packagesDir -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
+            exit 1
+          }
 
       - name: Build (Release x64)
         shell: pwsh
